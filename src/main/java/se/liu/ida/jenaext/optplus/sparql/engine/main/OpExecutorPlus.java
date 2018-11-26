@@ -1,5 +1,7 @@
 package se.liu.ida.jenaext.optplus.sparql.engine.main;
 
+import org.apache.jena.sparql.algebra.Op;
+import org.apache.jena.sparql.algebra.op.OpConditional;
 import org.apache.jena.sparql.algebra.op.OpLeftJoin;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
@@ -12,6 +14,7 @@ import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprList;
 
+import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNestedLoopJoinPlus;
 import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly;
 import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNestedLoopJoinPlusMaterializeRightFirst;
 
@@ -38,6 +41,12 @@ public class OpExecutorPlus extends OpExecutor
     }
 
     @Override
+    protected QueryIterator exec(Op op, QueryIterator input)
+    {
+    	return super.exec(op, input);
+    }
+
+    @Override
     protected QueryIterator execute( OpLeftJoin opLeftJoin, QueryIterator input )
     {
     	if ( ! useOptPlusSemantics )
@@ -54,25 +63,49 @@ public class OpExecutorPlus extends OpExecutor
         		filteredRight = new QueryIterFilterExpr( filteredRight, expr, execCxt );
         }
 
+        return executeOptPlus(left, filteredRight);
+    }
 
+    @Override
+    protected QueryIterator execute(OpConditional opCondition, QueryIterator input)
+    {
+    	if ( ! useOptPlusSemantics )
+    		return super.execute(opCondition, input);
+
+        final QueryIterator left = exec( opCondition.getLeft(), input );
+
+        final String c = execCxt.getContext().getAsString( QueryEnginePlus.classnameOptPlusIterator,
+                                                           "QueryIterHashJoinPlusMaterializeLeftOnTheFly" );
+        if ( c.equals("QueryIterNestedLoopJoinPlus") )
+        	return new QueryIterNestedLoopJoinPlus( left, opCondition.getRight(), execCxt );
+
+        final QueryIterator right = exec( opCondition.getRight(), root() );
+        return executeOptPlus(left, right);
+    }
+
+
+    // -------- helpers --------
+
+    protected QueryIterator executeOptPlus( QueryIterator left, QueryIterator right )
+    {
     	final String c = execCxt.getContext().getAsString( QueryEnginePlus.classnameOptPlusIterator,
                                                            "QueryIterHashJoinPlusMaterializeLeftOnTheFly" );
         switch( c )
         {
         	case "QueryIterHashJoinPlusMaterializeLeftOnTheFly":
-            	return new QueryIterHashJoinPlusMaterializeLeftOnTheFly( null, left, filteredRight, execCxt );
+            	return new QueryIterHashJoinPlusMaterializeLeftOnTheFly( null, left, right, execCxt );
 
             case "QueryIterHashJoinPlusMaterializeLeftFirst":
-            	return new QueryIterHashJoinPlusMaterializeLeftFirst( null, left, filteredRight, execCxt );
+            	return new QueryIterHashJoinPlusMaterializeLeftFirst( null, left, right, execCxt );
 
             case "QueryIterHashJoinPlusMaterializeRightFirst":
-            	return QueryIterHashJoinPlusMaterializeRightFirst.create( left, filteredRight, execCxt );
+            	return QueryIterHashJoinPlusMaterializeRightFirst.create( left, right, execCxt );
 
             case "QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly":
-            	return new QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly( left, filteredRight, execCxt );
+            	return new QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly( left, right, execCxt );
 
             case "QueryIterNestedLoopJoinPlusMaterializeRightFirst":
-            	return new QueryIterNestedLoopJoinPlusMaterializeRightFirst( left, filteredRight, execCxt );
+            	return new QueryIterNestedLoopJoinPlusMaterializeRightFirst( left, right, execCxt );
         }
 
         throw new IllegalArgumentException( "Unexpected classnameOptPlusIterator: " + c );
