@@ -15,12 +15,14 @@
 		<groupId>org.apache.jena</groupId>
 		<artifactId>apache-jena-libs</artifactId>
 		<type>pom</type>
-		<version>3.8.0</version>
+<!-- 		<version>3.8.0</version> -->
+		<version>3.7.0</version> <!-- because of hdt-jena that we need for OptPlusExperiments -->
 	</dependency>
 	<dependency>
 		<groupId>org.apache.jena</groupId>
 		<artifactId>jena-cmds</artifactId>
-		<version>3.8.0</version>
+<!-- 		<version>3.8.0</version> -->
+		<version>3.7.0</version> <!-- because of hdt-jena that we need for OptPlusExperiments -->
 	</dependency>
 	<dependency>
    		<groupId>junit</groupId>
