@@ -25,20 +25,19 @@ public class QueryIterNLJPlusWithOuterLoopOverMaterializedLeft extends QueryIter
     protected long s_countResults = 0L;
 
     protected final Op opRight;
-    protected final List<Binding> leftMappings;
+    protected final List<Binding> leftMappings = new ArrayList<>();
 
     protected QueryIterator itLeft;
-    protected Iterator<Binding> itLeftTable;
-    protected QueryIterator itCurrentStage;
+    protected Iterator<Binding> itLeftTable = null;
+    protected QueryIterator itCurrentStage = null;
     protected Binding slot = null;
 
     public QueryIterNLJPlusWithOuterLoopOverMaterializedLeft( QueryIterator itLeft, Op opRight, ExecutionContext context )
     {
         super(itLeft, context);
-        this.opRight = opRight;
 
-        leftMappings = new ArrayList<>();
         this.itLeft = itLeft;
+        this.opRight = opRight;
     }
 
     @Override
@@ -60,9 +59,8 @@ public class QueryIterNLJPlusWithOuterLoopOverMaterializedLeft extends QueryIter
 
         		itLeft.close();
         		itLeft = null;
+        		itLeftTable = leftMappings.iterator();
         	}
-
-        	itLeftTable = leftMappings.iterator();
 
             slot = moveToNextBindingOrNull();
             if ( slot == null ) {
@@ -98,9 +96,6 @@ public class QueryIterNLJPlusWithOuterLoopOverMaterializedLeft extends QueryIter
                 final Binding mapping = itLeftTable.next();
                 itCurrentStage = nextStage(mapping);
             }
-
-            if ( itCurrentStage == null )
-            	return null;
 
             if ( itCurrentStage.hasNext() )
                 return itCurrentStage.next();
