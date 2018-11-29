@@ -22,6 +22,7 @@ import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
 import org.apache.jena.sparql.expr.ExprList;
 
+import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNLJPlusWithOuterLoopOverMaterializedLeft;
 import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNestedLoopJoinPlus;
 import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly;
 import se.liu.ida.jenaext.optplus.sparql.engine.join.QueryIterNestedLoopJoinPlusMaterializeRightFirst;
@@ -81,22 +82,26 @@ public class OpExecutorPlus extends OpExecutor
     		return super.execute(opCondition, input);
 
         final QueryIterator left = exec( opCondition.getLeft(), input );
+        final QueryIterPeek left2 = QueryIterPeek.create(left, execCxt);
+
+        if ( left2.peek() == null ) {
+        	left2.close();
+        	return new QueryIterNullIterator(execCxt);
+        }
 
         final String c = execCxt.getContext().getAsString( QueryEnginePlus.classnameOptPlusIterator,
                                                            "QueryIterHashJoinPlusMaterializeLeftOnTheFly" );
-        if ( c.equals("QueryIterNestedLoopJoinPlus") )
+        switch( c )
         {
-            final QueryIterPeek left2  = QueryIterPeek.create(left,  execCxt);
-            if ( left2.peek() == null ) {
-            	left2.close();
-            	return new QueryIterNullIterator(execCxt);
-            }
-            else
+        	case "QueryIterNestedLoopJoinPlus":
             	return new QueryIterNestedLoopJoinPlus( left2, opCondition.getRight(), execCxt );
+
+            case "QueryIterNLJPlusWithOuterLoopOverMaterializedLeft":
+            	return new QueryIterNLJPlusWithOuterLoopOverMaterializedLeft( left2, opCondition.getRight(), execCxt );
         }
 
         final QueryIterator right = exec( opCondition.getRight(), root() );
-        return executeOptPlus(left, right);
+        return executeOptPlus(left2, right);
     }
 
 
@@ -104,8 +109,17 @@ public class OpExecutorPlus extends OpExecutor
 
     protected QueryIterator executeOptPlus( QueryIterator left, QueryIterator right )
     {
-        final QueryIterPeek left2  = QueryIterPeek.create(left,  execCxt);
-        final QueryIterPeek right2 = QueryIterPeek.create(right, execCxt);
+        final QueryIterPeek left2;
+        if ( left instanceof QueryIterPeek )
+        	left2 = (QueryIterPeek) left;
+        else
+        	left2 = QueryIterPeek.create(left,  execCxt);
+
+        final QueryIterPeek right2;
+        if ( right instanceof QueryIterPeek )
+        	right2 = (QueryIterPeek) right;
+        else
+        	right2 = QueryIterPeek.create(right, execCxt);
 
         final Binding bLeft  = left2.peek();
         final Binding bRight = right2.peek();
