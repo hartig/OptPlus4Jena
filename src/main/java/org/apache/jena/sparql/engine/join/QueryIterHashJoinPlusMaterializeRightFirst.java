@@ -1,15 +1,11 @@
 package org.apache.jena.sparql.engine.join;
 
 import java.util.Iterator;
-import java.util.List;
 
-import org.apache.jena.atlas.iterator.Iter;
 import org.apache.jena.sparql.algebra.Algebra;
-import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
-import org.apache.jena.sparql.engine.iterator.QueryIterPeek;
 import org.apache.jena.sparql.engine.join.AbstractIterHashJoin;
 import org.apache.jena.sparql.engine.join.JoinKey;
 import org.apache.jena.sparql.engine.join.JoinLib;
@@ -20,43 +16,15 @@ import org.apache.jena.sparql.engine.join.JoinLib;
  */
 public class QueryIterHashJoinPlusMaterializeRightFirst extends AbstractIterHashJoin
 {
-	static public QueryIterator create( QueryIterator left,
-                                        QueryIterator right,
-                                        ExecutionContext execCxt )
-	{
-		return create( null, left, right, execCxt );
-	}
-
-	static public QueryIterator create( JoinKey joinKey,
-                                        QueryIterator left,
-                                        QueryIterator right,
-                                        ExecutionContext execCxt )
-	{
-		if ( joinKey == null ) {
-            final QueryIterPeek left2  = QueryIterPeek.create(left,  execCxt);
-            final QueryIterPeek right2 = QueryIterPeek.create(right, execCxt);
-
-            final Binding bLeft  = left2.peek();
-            final Binding bRight = right2.peek();
-
-            final List<Var> varsLeft  = Iter.toList( bLeft.vars() );
-            final List<Var> varsRight = Iter.toList( bRight.vars() );
-            joinKey = JoinKey.createVarKey(varsLeft, varsRight);
-            left = left2;
-            right = right2;
-        }
-		return new QueryIterHashJoinPlusMaterializeRightFirst( joinKey, left, right, execCxt );
-	}
-
     protected final QueryIterator  itStream;
 
     protected Binding            currentMappingFromStream = null;
     protected Iterator<Binding>  itCandidates = null;
 
-    protected QueryIterHashJoinPlusMaterializeRightFirst( JoinKey joinKey,
-                                                          QueryIterator left,
-                                                          QueryIterator right,
-                                                          ExecutionContext execCxt )
+    public QueryIterHashJoinPlusMaterializeRightFirst( JoinKey joinKey,
+                                                       QueryIterator left,
+                                                       QueryIterator right,
+                                                       ExecutionContext execCxt )
     {
         super(joinKey, right, left, execCxt); // swap left and right to materialize right
 

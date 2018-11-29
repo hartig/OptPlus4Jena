@@ -12,6 +12,7 @@ import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingHashMap;
 import org.apache.jena.sparql.engine.iterator.QueryIterSingleton;
+import org.apache.jena.sparql.engine.join.JoinKey;
 
 /**
  * 
@@ -19,7 +20,8 @@ import org.apache.jena.sparql.engine.iterator.QueryIterSingleton;
  */
 public abstract class AbstractQueryIterJoinPlusTest
 {
-	abstract public QueryIterator createIterator( QueryIterator left,
+	abstract public QueryIterator createIterator( JoinKey joinKey,
+                                                  QueryIterator left,
                                                   QueryIterator right,
                                                   ExecutionContext execCxt );
 
@@ -42,7 +44,9 @@ public abstract class AbstractQueryIterJoinPlusTest
 		final QueryIterator left  = QueryIterSingleton.create(leftMapping,eCtxt);
 		final QueryIterator right = QueryIterSingleton.create(rightMapping,eCtxt);
 
-		final QueryIterator test = createIterator(left, right, eCtxt);
+		final JoinKey joinKey = JoinKey.create(v1);
+
+		final QueryIterator test = createIterator(joinKey, left, right, eCtxt);
 
 		assertTrue( test.hasNext() );
 		assertEquals( leftMapping, test.next() );
@@ -71,7 +75,9 @@ public abstract class AbstractQueryIterJoinPlusTest
 		final QueryIterator left  = QueryIterSingleton.create(leftMapping,eCtxt);
 		final QueryIterator right = QueryIterSingleton.create(rightMapping,eCtxt);
 
-		final QueryIterator test = createIterator(left, right, eCtxt);
+		final JoinKey joinKey = JoinKey.create(v1);
+
+		final QueryIterator test = createIterator(joinKey, left, right, eCtxt);
 
 		assertTrue( test.hasNext() );
 		assertEquals( leftMapping, test.next() );

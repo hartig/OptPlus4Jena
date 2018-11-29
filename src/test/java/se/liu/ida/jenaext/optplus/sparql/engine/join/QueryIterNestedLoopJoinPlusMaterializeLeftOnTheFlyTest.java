@@ -2,6 +2,7 @@ package se.liu.ida.jenaext.optplus.sparql.engine.join;
 
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
+import org.apache.jena.sparql.engine.join.JoinKey;
 import org.junit.Test;
 
 /**
@@ -11,7 +12,8 @@ import org.junit.Test;
 public class QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFlyTest extends AbstractQueryIterJoinPlusTest
 {
 	@Override
-	public QueryIterator createIterator( QueryIterator left,
+	public QueryIterator createIterator( JoinKey joinKey,
+                                         QueryIterator left,
                                          QueryIterator right,
                                          ExecutionContext execCxt )
 	{
