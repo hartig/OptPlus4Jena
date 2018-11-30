@@ -46,10 +46,8 @@ public class SubsumptionAwareCollectionOfMappings
         while ( it.hasNext() )
         {
         	final Binding earlierMapping = it.next();
-        	final boolean earlierMappingSubsumed = subsumedBy(earlierMapping, mapping);
-        	final boolean inputMappingSubsumed   = subsumedBy(mapping, earlierMapping);
 
-        	if ( ! inputMappingAdded && earlierMappingSubsumed )
+        	if ( ! inputMappingAdded && subsumedBy(earlierMapping, mapping) )
         	{
         		// Note, this case includes the case in which the two mappings
         		// are equivalent; i.e., inputMappingSubsumed may also be true
@@ -68,7 +66,7 @@ public class SubsumptionAwareCollectionOfMappings
 
         		inputMappingAdded = true;
         	}
-        	else if ( ! inputMappingAdded && inputMappingSubsumed )
+        	else if ( ! inputMappingAdded && subsumedBy(mapping, earlierMapping) )
         	{
         		newBucket.add(mapping);
 
