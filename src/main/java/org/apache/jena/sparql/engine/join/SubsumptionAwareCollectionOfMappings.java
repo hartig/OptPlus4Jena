@@ -29,8 +29,10 @@ public class SubsumptionAwareCollectionOfMappings
 			joinKey = createJoinKey(mapping);
 
 		final Object longHash = JoinLib.hash(joinKey, mapping);
-        if ( longHash == JoinLib.noKeyHash )
+        if ( longHash == JoinLib.noKeyHash ) {
         	noKeyBucket.add(mapping);
+        	return;
+        }
 
         final List<Binding> bucket = buckets.remove(longHash);
         if ( bucket == null ) {
@@ -115,6 +117,53 @@ public class SubsumptionAwareCollectionOfMappings
 			return mappingsSubsumingInputMapping;
 
 		return new ArrayList<>();
+	}
+
+	/**
+	 * For debugging purposes.
+	 */
+	public void printStats()
+	{
+		System.out.println( "noKeyBucket.size(): " + noKeyBucket.size() );
+
+		int cntSubsumedMappings = 0;
+		int maxBucketSize = 0;
+		int minBucketSize = Integer.MAX_VALUE;
+
+		final Iterator<List<Binding>> itBucket = buckets.values().iterator();
+		while ( itBucket.hasNext() ) {
+			int bucketSize = itBucket.next().size();
+			cntSubsumedMappings += bucketSize;
+			if ( bucketSize > maxBucketSize )
+				maxBucketSize = bucketSize;
+			if ( bucketSize < minBucketSize )
+				minBucketSize = bucketSize;
+		}
+
+		System.out.println( "buckets.size():      " + buckets.size() );
+		System.out.println( "cntSubsumedMappings: " + cntSubsumedMappings );
+		System.out.println( "average bucket size: " + cntSubsumedMappings/(0d+buckets.size()) );
+		System.out.println( "minimum bucket size: " + minBucketSize );
+		System.out.println( "maximum bucket size: " + maxBucketSize );
+
+		int cntSubsumingMappings = 0;
+		int maxSubsumingMappings = 0;
+		int minSubsumingMappings = Integer.MAX_VALUE;
+		final Iterator<List<Binding>> it2 = subsumingMappings.values().iterator();
+		while ( it2.hasNext() ) {
+			int size = it2.next().size();
+			cntSubsumingMappings += size;
+			if ( size > maxSubsumingMappings )
+				maxSubsumingMappings = size;
+			if ( size < minSubsumingMappings )
+				minSubsumingMappings = size;
+		}
+
+		System.out.println( "subsumingMappings.size():  " + subsumingMappings.size() );
+		System.out.println( "cntSubsumingMappings: " + cntSubsumingMappings );
+		System.out.println( "average number of subsuming mappings: " + cntSubsumingMappings/(0d+subsumingMappings.size()) );
+		System.out.println( "minimum number of subsuming mappings: " + minSubsumingMappings );
+		System.out.println( "maximum number of subsuming mappings: " + maxSubsumingMappings );
 	}
 
 	static public JoinKey createJoinKey( Binding mapping )
