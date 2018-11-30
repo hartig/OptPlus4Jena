@@ -34,11 +34,9 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
     protected QueryIterator itLeft;
 
     protected Iterator<Binding> itLeftNoKeyMappings = null;
-    protected Binding currentNoKeyMapping = null;
     protected QueryIterator itRightForCurrentNoKeyMapping = null;
 
     protected Iterator<Binding> itLeftSubsumedMappings = null;
-    protected Binding currentSubsumedMapping = null;
     protected List<Binding> currentSubsumingMappings = null;
     protected Iterator<Binding> itCurrentSubsumingMapping = null;
     protected QueryIterator itRightForCurrentSubsumedMapping = null;
@@ -116,12 +114,12 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
 
         for ( ;; )
         {
-        	if ( currentNoKeyMapping == null )
+        	if ( itRightForCurrentNoKeyMapping == null )
         	{
         		if ( ! itLeftNoKeyMappings.hasNext() )
         			return null;
 
-        		currentNoKeyMapping = itLeftNoKeyMappings.next();
+        		final Binding currentNoKeyMapping = itLeftNoKeyMappings.next();
 
         		final QueryIterator leftForRight  = QueryIterSingleton.create( currentNoKeyMapping, getExecContext() );
                 itRightForCurrentNoKeyMapping = QC.execute( QC.substitute(opRight,currentNoKeyMapping),
@@ -133,13 +131,10 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
             {
             	itRightForCurrentNoKeyMapping.close();
             	itRightForCurrentNoKeyMapping = null;
-            	currentNoKeyMapping = null;
             	continue;
             }
 
-            final Binding b = itRightForCurrentNoKeyMapping.next();
-
-            return merge(currentNoKeyMapping, b);
+            return itRightForCurrentNoKeyMapping.next();
         }
     }
 
@@ -150,12 +145,12 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
 
         for ( ;; )
         {
-            if ( currentSubsumedMapping == null  )
+            if ( itRightForCurrentSubsumedMapping == null  )
             {
             	if ( ! itLeftSubsumedMappings.hasNext() )
                 	return null;
 
-            	currentSubsumedMapping = itLeftSubsumedMappings.next();
+            	final Binding currentSubsumedMapping = itLeftSubsumedMappings.next();
         		currentSubsumingMappings = leftMappings.subsumingMappings(currentSubsumedMapping);
 
                 final QueryIterator leftForRight  = QueryIterSingleton.create( currentSubsumedMapping, getExecContext() );
@@ -172,7 +167,6 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
             		itRightForCurrentSubsumedMapping.close();
             		itRightForCurrentSubsumedMapping = null;
 
-            		currentSubsumedMapping = null;
             		currentSubsumingMappings = null;
             		itCurrentSubsumingMapping = null;
 
@@ -182,7 +176,7 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
         		itCurrentSubsumingMapping = currentSubsumingMappings.iterator();
 
             	currentRightMapping = itRightForCurrentSubsumedMapping.next();
-            	return merge(currentSubsumedMapping, currentRightMapping);
+            	return currentRightMapping;
             }
 
             if ( ! itCurrentSubsumingMapping.hasNext() )
@@ -194,6 +188,8 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
             final Binding subsumingMapping = itCurrentSubsumingMapping.next();
             if ( Algebra.compatible(subsumingMapping, currentRightMapping) )
             	return merge(subsumingMapping, currentRightMapping);
+            //final Binding solution = mergeOrNull(subsumingMapping, currentRightMapping);
+            //if ( solution != null ) return solution;
         }
     }
 
@@ -229,6 +225,26 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
                 final Node n = m2.get(v);
                 b.add(v, n);
             }
+        }
+
+        return b;
+    }
+
+    static public Binding mergeOrNull( Binding m1, Binding m2 )
+    {
+        final BindingMap b = BindingFactory.create(m1);
+
+        final Iterator<Var> it = m2.vars();
+        while ( it.hasNext() )
+        {
+            final Var v = it.next();
+            final Node n1 = m1.get(v);
+            final Node n2 = m2.get(v);
+            if ( n1 == null ) {
+                b.add(v, n2);
+            }
+            else if ( ! n1.equals(n2) )
+            	return null;
         }
 
         return b;
