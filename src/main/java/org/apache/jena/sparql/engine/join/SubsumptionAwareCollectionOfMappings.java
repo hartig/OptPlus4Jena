@@ -96,8 +96,6 @@ public class SubsumptionAwareCollectionOfMappings
 
 	public Iterator<Binding> noKeyMappings()
 	{
-if ( noKeyBucket.size() > 0 )
-System.out.println( "noKeyMappings " + noKeyBucket.size() );
 		return noKeyBucket.iterator();
 	}
 
@@ -116,10 +114,7 @@ System.out.println( "noKeyMappings " + noKeyBucket.size() );
 	{
 		final List<Binding> mappingsSubsumingInputMapping = subsumingMappings.get( m );
 		if ( mappingsSubsumingInputMapping != null )
-{
-System.out.println( "subsumingMappings " + mappingsSubsumingInputMapping.size() );
 			return mappingsSubsumingInputMapping;
-}
 
 		return new ArrayList<>();
 	}
@@ -147,7 +142,7 @@ System.out.println( "subsumingMappings " + mappingsSubsumingInputMapping.size() 
             final Node n1 = m1.get(v);
             final Node n2 = m2.get(v);
 
-            if ( n2 == null || n2.equals(n1) )
+            if ( n2 == null || ! n2.equals(n1) )
             	return false;
         }
 
