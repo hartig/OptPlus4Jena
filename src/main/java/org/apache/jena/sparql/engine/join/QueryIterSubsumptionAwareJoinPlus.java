@@ -186,10 +186,9 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
             }
 
             final Binding subsumingMapping = itCurrentSubsumingMapping.next();
-            if ( Algebra.compatible(subsumingMapping, currentRightMapping) )
-            	return merge(subsumingMapping, currentRightMapping);
-            //final Binding solution = mergeOrNull(subsumingMapping, currentRightMapping);
-            //if ( solution != null ) return solution;
+            final Binding solution = mergeOrNull(subsumingMapping, currentRightMapping);
+            if ( solution != null )
+            	return solution;
         }
     }
 
