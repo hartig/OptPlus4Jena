@@ -1,17 +1,17 @@
 package org.apache.jena.sparql.engine.join;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.jena.ext.com.google.common.collect.LinkedListMultimap;
-import org.apache.jena.ext.com.google.common.collect.Multimap;
+import org.apache.jena.graph.Node;
+import org.apache.jena.sparql.algebra.Algebra;
 import org.apache.jena.sparql.algebra.Op;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.ExecutionContext;
 import org.apache.jena.sparql.engine.QueryIterator;
 import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.engine.binding.BindingMap;
 import org.apache.jena.sparql.engine.iterator.QueryIter1;
 import org.apache.jena.sparql.engine.iterator.QueryIterSingleton;
 import org.apache.jena.sparql.engine.main.QC;
@@ -29,11 +29,23 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
     protected long s_countResults = 0L;
 
     protected final Op opRight;
-    protected final List<Binding> leftMappings = new ArrayList<>();
+    protected final SubsumptionAwareCollectionOfMappings leftMappings = new SubsumptionAwareCollectionOfMappings();
 
     protected QueryIterator itLeft;
-    protected Iterator<Binding> itLeftTable = null;
+
+    protected Iterator<Binding> itLeftNoKeyMappings = null;
+    protected Binding currentNoKeyMapping = null;
+    protected QueryIterator itRightForCurrentNoKeyMapping = null;
+
+    protected Iterator<Binding> itLeftSubsumedMappings = null;
+    protected Binding currentSubsumedMapping = null;
+    protected List<Binding> currentSubsumingMappings = null;
+    protected Iterator<Binding> itCurrentSubsumingMapping = null;
+    protected QueryIterator itRightForCurrentSubsumedMapping = null;
+    protected Binding currentRightMapping = null;
+
     protected QueryIterator itCurrentStage = null;
+
     protected Binding slot = null;
 
     public QueryIterSubsumptionAwareJoinPlus( QueryIterator itLeft, Op opRight, ExecutionContext context )
@@ -63,7 +75,17 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
 
         		itLeft.close();
         		itLeft = null;
-        		itLeftTable = leftMappings.iterator();
+        		itLeftNoKeyMappings = leftMappings.noKeyMappings();
+        		itLeftSubsumedMappings = leftMappings.subsumedMappings();
+        	}
+
+        	if ( itLeftNoKeyMappings != null )
+        	{
+        		slot = moveToNextBindingOrNullForNoKeyBindings();
+        		if ( slot != null)
+        			return true;
+
+        		itLeftNoKeyMappings = null;
         	}
 
             slot = moveToNextBindingOrNull();
@@ -85,6 +107,40 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
         return r;
     }
 
+    protected Binding moveToNextBindingOrNullForNoKeyBindings()
+    {
+        if ( isFinished() )
+            return null;
+
+        for ( ;; )
+        {
+        	if ( currentNoKeyMapping == null )
+        	{
+        		if ( ! itLeftNoKeyMappings.hasNext() )
+        			return null;
+
+        		currentNoKeyMapping = itLeftNoKeyMappings.next();
+
+        		final QueryIterator leftForRight  = QueryIterSingleton.create( currentNoKeyMapping, getExecContext() );
+                itRightForCurrentNoKeyMapping = QC.execute( QC.substitute(opRight,currentNoKeyMapping),
+                                                            leftForRight,
+                                                            getExecContext() );
+        	}
+
+            if ( ! itRightForCurrentNoKeyMapping.hasNext() )
+            {
+            	itRightForCurrentNoKeyMapping.close();
+            	itRightForCurrentNoKeyMapping = null;
+            	currentNoKeyMapping = null;
+            	continue;
+            }
+
+            final Binding b = itRightForCurrentNoKeyMapping.next();
+
+            return merge(currentNoKeyMapping, b);
+        }
+    }
+
     protected Binding moveToNextBindingOrNull()
     {
         if ( isFinished() )
@@ -92,20 +148,50 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
 
         for ( ;; )
         {
-            if ( itCurrentStage == null  )
+            if ( currentSubsumedMapping == null  )
             {
-            	if ( ! itLeftTable.hasNext() )
+            	if ( ! itLeftSubsumedMappings.hasNext() )
                 	return null;
 
-                final Binding mapping = itLeftTable.next();
-                itCurrentStage = nextStage(mapping);
+            	currentSubsumedMapping = itLeftSubsumedMappings.next();
+        		currentSubsumingMappings = leftMappings.subsumingMappings(currentSubsumedMapping);
+
+                final QueryIterator leftForRight  = QueryIterSingleton.create( currentSubsumedMapping, getExecContext() );
+                itRightForCurrentSubsumedMapping = QC.execute( QC.substitute(opRight,currentSubsumedMapping),
+                                                               leftForRight,
+                                                               getExecContext() );
+                currentRightMapping = null;
             }
 
-            if ( itCurrentStage.hasNext() )
-                return itCurrentStage.next();
+            if ( currentRightMapping == null )
+            {
+            	if ( ! itRightForCurrentSubsumedMapping.hasNext() )
+            	{
+            		itRightForCurrentSubsumedMapping.close();
+            		itRightForCurrentSubsumedMapping = null;
 
-            itCurrentStage.close();
-            itCurrentStage = null;
+            		currentSubsumedMapping = null;
+            		currentSubsumingMappings = null;
+            		itCurrentSubsumingMapping = null;
+
+            		continue;
+            	}
+
+        		itCurrentSubsumingMapping = currentSubsumingMappings.iterator();
+
+            	currentRightMapping = itRightForCurrentSubsumedMapping.next();
+            	return merge(currentSubsumedMapping, currentRightMapping);
+            }
+
+            if ( ! itCurrentSubsumingMapping.hasNext() )
+            {
+                currentRightMapping = null;
+                continue;
+            }
+
+            final Binding subsumingMapping = itCurrentSubsumingMapping.next();
+            if ( Algebra.compatible(subsumingMapping, currentRightMapping) )
+            	return merge(subsumingMapping, currentRightMapping);
         }
     }
 
@@ -135,44 +221,26 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
     @Override
     protected void requestSubCancel() {}
 
-
-    static protected class SubsumptionAwareListOfMappings
+    /**
+     * Merges the two solutions mappings assuming that they are compatible. 
+     * Notice, if you want to use a merge method that includes a compatibility
+     * check, use {@link Algebra#merge(Binding, Binding)}.  
+     */
+    static public Binding merge( Binding m1, Binding m2 )
     {
-    	protected final List<Binding>              noKeyBucket = new ArrayList<>();
-    	protected final Multimap<Object, Binding>  buckets = LinkedListMultimap.create();
-    	protected final Multimap<Binding, Binding> subsumingMappings = LinkedListMultimap.create();
+        final BindingMap b = BindingFactory.create(m2);
 
-    	protected JoinKey joinKey = null;
-
-    	public void add( Binding mapping )
-    	{
-    		if ( joinKey == null )
-    			joinKey = createJoinKey(mapping);
-
-    		final Object longHash = JoinLib.hash(joinKey, mapping);
-            if ( longHash == JoinLib.noKeyHash )
-            	noKeyBucket.add(mapping);
-
-            final Collection<Binding> bucket = buckets.get(longHash);
-            if ( bucket == null ) {
-            	buckets.put(longHash, mapping);
-            	return;
+        final Iterator<Var> it = m2.vars();
+        while ( it.hasNext() )
+        {
+            final Var v = it.next();
+            if ( ! m1.contains(v) ) {
+                final Node n = m2.get(v);
+                b.add(v, n);
             }
+        }
 
-//            TODO ...
-    	}
-
-    	static public JoinKey createJoinKey( Binding mapping )
-    	{
-    		final JoinKey.Builder builder = new JoinKey.Builder();
-
-    		final Iterator<Var> it = mapping.vars();
-    		while ( it.hasNext() )
-    			builder.add( it.next() );
-
-    		return builder.build();
-    	}
-
-    } // end of class SubsumptionAwareListOfMappings
+        return b;
+    }
 
 }

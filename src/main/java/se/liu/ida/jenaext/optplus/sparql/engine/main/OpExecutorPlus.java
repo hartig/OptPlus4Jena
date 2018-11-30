@@ -17,6 +17,7 @@ import org.apache.jena.sparql.engine.join.JoinKey;
 import org.apache.jena.sparql.engine.join.QueryIterHashJoinPlusMaterializeLeftFirst;
 import org.apache.jena.sparql.engine.join.QueryIterHashJoinPlusMaterializeLeftOnTheFly;
 import org.apache.jena.sparql.engine.join.QueryIterHashJoinPlusMaterializeRightFirst;
+import org.apache.jena.sparql.engine.join.QueryIterSubsumptionAwareJoinPlus;
 import org.apache.jena.sparql.engine.main.OpExecutor;
 import org.apache.jena.sparql.engine.main.OpExecutorFactory;
 import org.apache.jena.sparql.expr.Expr;
@@ -98,6 +99,9 @@ public class OpExecutorPlus extends OpExecutor
 
             case "QueryIterNLJPlusWithOuterLoopOverMaterializedLeft":
             	return new QueryIterNLJPlusWithOuterLoopOverMaterializedLeft( left2, opCondition.getRight(), execCxt );
+
+            case "QueryIterSubsumptionAwareJoinPlus":
+            	return new QueryIterSubsumptionAwareJoinPlus( left2, opCondition.getRight(), execCxt );
         }
 
         final QueryIterator right = exec( opCondition.getRight(), root() );
