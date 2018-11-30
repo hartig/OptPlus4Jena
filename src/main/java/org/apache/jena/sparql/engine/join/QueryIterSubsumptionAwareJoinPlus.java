@@ -82,8 +82,10 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
         	if ( itLeftNoKeyMappings != null )
         	{
         		slot = moveToNextBindingOrNullForNoKeyBindings();
-        		if ( slot != null)
+        		if ( slot != null) {
+        	        s_countResults++;
         			return true;
+        		}
 
         		itLeftNoKeyMappings = null;
         	}
@@ -195,17 +197,6 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
         }
     }
 
-    protected QueryIterator nextStage( Binding mapping )
-    {
-        final Op op2 = QC.substitute(opRight, mapping);
-        final QueryIterator leftForRight  = QueryIterSingleton.create( mapping, getExecContext() );
-
-        // inner loop
-        final QueryIterator currentRight = QC.execute( op2, leftForRight, getExecContext() );
-
-        return currentRight;
-    }
-
     @Override
     protected void closeSubIterator()
     {
@@ -228,7 +219,7 @@ public class QueryIterSubsumptionAwareJoinPlus extends QueryIter1
      */
     static public Binding merge( Binding m1, Binding m2 )
     {
-        final BindingMap b = BindingFactory.create(m2);
+        final BindingMap b = BindingFactory.create(m1);
 
         final Iterator<Var> it = m2.vars();
         while ( it.hasNext() )
