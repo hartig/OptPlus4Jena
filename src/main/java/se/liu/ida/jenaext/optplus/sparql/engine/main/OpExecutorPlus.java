@@ -85,13 +85,15 @@ public class OpExecutorPlus extends OpExecutor
         final QueryIterator left = exec( opCondition.getLeft(), input );
         final QueryIterPeek left2 = QueryIterPeek.create(left, execCxt);
 
-        if ( left2.peek() == null ) {
-        	left2.close();
-        	return new QueryIterNullIterator(execCxt);
-        }
+        // The following is out-commented because it seems to have
+        // some weird side-effects in some cases.  -Olaf
+        //if ( left2.peek() == null ) {
+        //	left2.close();
+        //	return new QueryIterNullIterator(execCxt);
+        //}
 
         final String c = execCxt.getContext().getAsString( QueryEnginePlus.classnameOptPlusIterator,
-                                                           "QueryIterHashJoinPlusMaterializeLeftOnTheFly" );
+                                                           "QueryIterNLJPlusWithOuterLoopOverMaterializedLeft" );
         switch( c )
         {
         	case "QueryIterNestedLoopJoinPlus":
@@ -113,38 +115,36 @@ public class OpExecutorPlus extends OpExecutor
 
     protected QueryIterator executeOptPlus( QueryIterator left, QueryIterator right )
     {
-        final QueryIterPeek left2;
-        if ( left instanceof QueryIterPeek )
-        	left2 = (QueryIterPeek) left;
-        else
-        	left2 = QueryIterPeek.create(left,  execCxt);
-
-        final QueryIterPeek right2;
-        if ( right instanceof QueryIterPeek )
-        	right2 = (QueryIterPeek) right;
-        else
-        	right2 = QueryIterPeek.create(right, execCxt);
-
-        final Binding bLeft  = left2.peek();
+        final QueryIterPeek right2 = QueryIterPeek.create(right, execCxt);
         final Binding bRight = right2.peek();
+        if ( bRight == null ) {
+        	right2.close();
+        	return left;
+        }
 
+    	final String c = execCxt.getContext().getAsString( QueryEnginePlus.classnameOptPlusIterator,
+                                                           "QueryIterHashJoinPlusMaterializeLeftOnTheFly" );
+        switch( c )
+        {
+            case "QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly":
+            	return new QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly( left, right2, execCxt );
+
+            case "QueryIterNestedLoopJoinPlusMaterializeRightFirst":
+            	return new QueryIterNestedLoopJoinPlusMaterializeRightFirst( left, right2, execCxt );
+        }
+
+        final QueryIterPeek left2  = QueryIterPeek.create(left,  execCxt);
+        final Binding bLeft  = left2.peek();
         if ( bLeft == null ) {
         	left2.close();
         	right2.close();
         	return new QueryIterNullIterator(execCxt);
         }
 
-        if ( bRight == null ) {
-        	right2.close();
-        	return left2;
-        }
-
     	final List<Var> varsLeft = Iter.toList( bLeft.vars() );
     	final List<Var> varsRight = Iter.toList( bRight.vars() );
     	final JoinKey joinKey = JoinKey.createVarKey(varsLeft, varsRight);
 
-    	final String c = execCxt.getContext().getAsString( QueryEnginePlus.classnameOptPlusIterator,
-                                                           "QueryIterHashJoinPlusMaterializeLeftOnTheFly" );
         switch( c )
         {
         	case "QueryIterHashJoinPlusMaterializeLeftOnTheFly":
@@ -155,12 +155,6 @@ public class OpExecutorPlus extends OpExecutor
 
             case "QueryIterHashJoinPlusMaterializeRightFirst":
             	return new QueryIterHashJoinPlusMaterializeRightFirst( joinKey, left2, right2, execCxt );
-
-            case "QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly":
-            	return new QueryIterNestedLoopJoinPlusMaterializeLeftOnTheFly( left2, right2, execCxt );
-
-            case "QueryIterNestedLoopJoinPlusMaterializeRightFirst":
-            	return new QueryIterNestedLoopJoinPlusMaterializeRightFirst( left2, right2, execCxt );
         }
 
         throw new IllegalArgumentException( "Unexpected classnameOptPlusIterator: " + c );
